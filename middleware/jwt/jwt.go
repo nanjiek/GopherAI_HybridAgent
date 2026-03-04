@@ -1,0 +1,41 @@
+﻿package jwt
+
+import (
+	"github.com/nanjiek/GopherAI_HybridAgent/common/code"
+	"github.com/nanjiek/GopherAI_HybridAgent/controller"
+	"github.com/nanjiek/GopherAI_HybridAgent/utils/myjwt"
+	"net/http"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+)
+
+func Auth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		res := new(controller.Response)
+
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			c.JSON(http.StatusOK, res.CodeOf(code.CodeInvalidToken))
+			c.Abort()
+			return
+		}
+
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if strings.TrimSpace(token) == "" {
+			c.JSON(http.StatusOK, res.CodeOf(code.CodeInvalidToken))
+			c.Abort()
+			return
+		}
+
+		userName, ok := myjwt.ParseToken(token)
+		if !ok {
+			c.JSON(http.StatusOK, res.CodeOf(code.CodeInvalidToken))
+			c.Abort()
+			return
+		}
+
+		c.Set("userName", userName)
+		c.Next()
+	}
+}
