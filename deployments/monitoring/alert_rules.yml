@@ -1,0 +1,50 @@
+groups:
+  - name: gophermind-backend
+    rules:
+      - alert: GopherMindHighHTTPErrorRate
+        expr: |
+          sum(rate(gophermind_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(gophermind_http_requests_total[5m])), 0.001)
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: gophermind-backend
+        annotations:
+          summary: "HTTP 5xx 错误率过高"
+          description: "最近 5 分钟 5xx 占比超过 5%，请检查应用日志与依赖可用性。"
+
+      - alert: GopherMindQueryP95TooHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(gophermind_query_latency_seconds_bucket[5m]))
+          ) > 1.5
+        for: 10m
+        labels:
+          severity: warning
+          service: gophermind-backend
+        annotations:
+          summary: "Query P95 延迟过高"
+          description: "query 接口 P95 持续 10 分钟高于 1.5s，建议检查模型调用和 RAG 链路。"
+
+      - alert: GopherMindDLQGrowing
+        expr: increase(gophermind_mq_dlq_total[10m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: gophermind-backend
+        annotations:
+          summary: "DLQ 消息增长"
+          description: "10 分钟内出现新的 DLQ 消息，请排查消费者失败原因与幂等状态。"
+
+      - alert: GopherMindRefreshFailureSpike
+        expr: increase(gophermind_auth_refresh_total{result="fail"}[5m]) > 20
+        for: 2m
+        labels:
+          severity: warning
+          service: gophermind-backend
+        annotations:
+          summary: "Refresh 失败激增"
+          description: "5 分钟内 refresh 失败超过 20 次，可能存在 token 过期风暴或攻击行为。"
